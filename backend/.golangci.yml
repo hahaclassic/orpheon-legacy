@@ -1,0 +1,22 @@
+version: 1
+
+issues:
+  exclude-dirs:
+    - cmd/player
+
+linters:
+  enable-all: false
+  disable:
+    - gochecknoinits
+    - gochecknoglobals
+    - depguard
+
+linters-settings:
+  tagliatelle:
+    case:
+      rules:
+        env: upperSnake
+        json: snake_case
+
+run:
+  timeout: 1m

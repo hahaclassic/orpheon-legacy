@@ -1,0 +1,17 @@
+FROM golang:1.24-alpine3.21 AS builder
+
+WORKDIR /orpheon
+
+COPY . .
+
+RUN go mod download
+
+RUN go build -o ./orpheon.exe ./cmd/orpheon/main.go
+
+FROM alpine:latest AS runner
+
+WORKDIR /
+
+COPY --from=builder /orpheon/orpheon.exe /orpheon.exe
+
+CMD ["/orpheon.exe"]
