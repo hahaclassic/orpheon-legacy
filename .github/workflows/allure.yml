@@ -12,11 +12,9 @@ jobs:
     name: Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version: 1.25
           cache: true
@@ -29,10 +27,13 @@ jobs:
         run: |
           cd backend
           mkdir -p report/unit-allure-results
-          go test -json ./internal/domain/... | golurectl -l -e -o report/unit-allure-results --allure-suite Unit --allure-tags UNIT
+          go test -json ./internal/domain/... | \
+            golurectl -l -e --no-history \
+              -o report/unit-allure-results \
+              --allure-suite Unit \
+              --allure-tags UNIT
 
-      - name: Upload Unit Allure Results
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: allure-results-unit
@@ -43,11 +44,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: unit-tests
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version: 1.25
           cache: true
@@ -60,10 +59,13 @@ jobs:
         run: |
           cd backend
           mkdir -p report/integration-allure-results
-          go test -json ./tests/integration/... | golurectl -l -e -o report/integration-allure-results --allure-suite Integration --allure-tags INTEGRATION
+          go test -json ./tests/integration/... | \
+            golurectl -l -e --no-history \
+              -o report/integration-allure-results \
+              --allure-suite Integration \
+              --allure-tags INTEGRATION
 
-      - name: Upload Integration Allure Results
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: allure-results-integration
@@ -74,11 +76,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: integration-tests
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version: 1.25
           cache: true
@@ -91,10 +91,13 @@ jobs:
         run: |
           cd backend
           mkdir -p report/e2e-allure-results
-          go test -json ./tests/e2e/... | golurectl -l -e -o report/e2e-allure-results --allure-suite E2E --allure-tags E2E
+          go test -json ./tests/e2e/... | \
+            golurectl -l -e --no-history \
+              -o report/e2e-allure-results \
+              --allure-suite E2E \
+              --allure-tags E2E
 
-      - name: Upload E2E Allure Results
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: allure-results-e2e
@@ -106,10 +109,9 @@ jobs:
     needs: [unit-tests, integration-tests, e2e-tests]
     if: always()
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Download all Allure results
+      - name: Download Allure results
         uses: actions/download-artifact@v4
         with:
           path: backend/tmp-allure
@@ -117,41 +119,29 @@ jobs:
       - name: Merge Allure results
         run: |
           mkdir -p backend/report/allure-results
-          cp -r backend/tmp-allure/allure-results-unit/* backend/report/allure-results/
-          cp -r backend/tmp-allure/allure-results-integration/* backend/report/allure-results/
-          cp -r backend/tmp-allure/allure-results-e2e/* backend/report/allure-results/
-          ls backend/report/allure-results/
-        continue-on-error: true
+          cp -r backend/tmp-allure/allure-results-unit/* backend/report/allure-results/ || true
+          cp -r backend/tmp-allure/allure-results-integration/* backend/report/allure-results/ || true
+          cp -r backend/tmp-allure/allure-results-e2e/* backend/report/allure-results/ || true
 
-      - name: Checkout gh-pages for history
+      - name: Checkout gh-pages (history source)
         uses: actions/checkout@v4
-        if: always()
         continue-on-error: true
         with:
           ref: gh-pages
           path: gh-pages
 
-      - name: Restore history for trends
-        if: always()
+      - name: Restore history
         run: |
           if [ -d gh-pages/history ]; then
             mkdir -p backend/report/allure-results/history
-            cp -r gh-pages/history/* backend/report/allure-results/history/ || true
+            cp -r gh-pages/history/* backend/report/allure-results/history/
           fi
-
-      # - name: Generate Allure Report
-      #   uses: simple-elf/allure-report-action@v1.9
-      #   if: always()
-      #   with:
-      #     allure_results: backend/report/allure-results
-      #     allure_history: gh-pages
-      #     gh_pages: gh-pages
 
       - name: Install Allure
         run: |
           sudo apt-get update
           sudo apt-get install -y default-jre
-          curl -o allure.tgz -L https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.tgz
+          curl -L -o allure.tgz https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.tgz
           tar -xzf allure.tgz
           sudo mv allure-2.27.0 /opt/allure
           sudo ln -s /opt/allure/bin/allure /usr/local/bin/allure
@@ -162,25 +152,10 @@ jobs:
             -o gh-pages \
             --clean
 
-      - name: Setup Git config
-        if: always()
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-
       - name: Publish to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
-        if: always()
         with:
           github_token: ${{ secrets.GH_PAGES_PAT }}
           publish_branch: gh-pages
           publish_dir: gh-pages
           force_orphan: true
-
-      - name: Upload Allure History for future runs
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: allure-history
-          path: gh-pages/history
-          retention-days: 30
